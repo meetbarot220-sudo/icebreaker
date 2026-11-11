@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ICE BREAKER: SHINCHAN & THE HAIRY SHOCK SOCKS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Mobile Touch Controls (Shown strictly on touchscreens) -->
+    <div id="touch-controls">
+      <div id="touch-left-group">
+        <button id="touch-btn-left" class="touch-btn dpad-btn" aria-label="Move Left">
+          <span class="btn-icon">◀</span>
+          <span class="btn-label">LEFT</span>
+        </button>
+        <button id="touch-btn-right" class="touch-btn dpad-btn" aria-label="Move Right">
+          <span class="btn-icon">▶</span>
+          <span class="btn-label">RIGHT</span>
+        </button>
+      </div>
+      <div id="touch-right-group">
+        <button id="touch-btn-attack" class="touch-btn action-btn attack-btn" aria-label="Hairy Shock Sock Attack">
+          <span class="btn-icon">⚡</span>
+          <span class="btn-label">ATTACK</span>
+        </button>
+        <button id="touch-btn-jump" class="touch-btn action-btn jump-btn" aria-label="Jump">
+          <span class="btn-icon">▲</span>
+          <span class="btn-label">JUMP</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Arcade Fullscreen Toggle Button -->
+    <button id="fullscreen-btn" aria-label="Toggle Fullscreen">⛶ FULL</button>
+  </div>
+
+  <!-- Standalone smooth 2D cartoon engine -->
+  <script src="js/game.js"></script>
+</body>
+</html>
