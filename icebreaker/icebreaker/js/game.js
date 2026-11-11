@@ -314,11 +314,6 @@
       APU.unlock();
       APU.playNoise({ duration: 0.25, volume: 0.2, playbackRate: 1.8, filterFreq: 3000 });
     },
-    stomp() {
-      APU.unlock();
-      APU.playNoise({ duration: 0.12, volume: 0.45, playbackRate: 1.2, filterFreq: 1200 });
-      APU.playTone({ freq: 220, slideTo: 580, duration: 0.18, volume: 0.38, type: 'triangle' });
-    },
     enemyDefeat() {
       APU.unlock();
       [520, 440, 350, 260].forEach((freq, idx) => {
@@ -549,27 +544,6 @@
           p.maxLife = 22;
           count++;
           if (count >= 5) break;
-        }
-      }
-    }
-
-    spawnStompImpact(x, y) {
-      const colors = ['#fff176', '#ffffff', '#00e5ff', '#ffeb3b', '#ffd54f'];
-      let count = 0;
-      for (const p of this.particles) {
-        if (!p.active) {
-          p.active = true;
-          p.x = x + (Math.random() - 0.5) * 16;
-          p.y = y;
-          const angle = (Math.PI * 2 * count) / 8;
-          p.vx = Math.cos(angle) * (3.0 + Math.random() * 1.5);
-          p.vy = -Math.abs(Math.sin(angle)) * 2.8 - 0.8;
-          p.color = colors[count % colors.length];
-          p.radius = 2.5 + Math.random() * 2.0;
-          p.life = 18;
-          p.maxLife = 18;
-          count++;
-          if (count >= 8) break;
         }
       }
     }
@@ -1381,11 +1355,6 @@
 
       if (duck.dir < 0) ctx.scale(-1, 1);
 
-      // Mario-style Flattened Squash animation
-      if (duck.isFlattened) {
-        ctx.scale(1.38, 0.28);
-      }
-
       if (duck.isShocked) {
         ctx.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
       }
@@ -1518,11 +1487,6 @@
       ctx.translate(x, y);
 
       if (penguin.dir < 0) ctx.scale(-1, 1);
-
-      // Mario-style Flattened Squash animation
-      if (penguin.isFlattened) {
-        ctx.scale(1.38, 0.28);
-      }
 
       if (penguin.isShocked) {
         ctx.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
@@ -2043,7 +2007,6 @@
       this.swingWeight = 0;   // 0 (not swinging) to 1 (swinging)
       this.landWeight = 0;    // 0 to 1 squash on landing
       this.headBumpTimer = 0; // Head-impact reaction when hitting blocks from below
-      this.stompTimer = 0;    // Stomp bounce visual reaction
     }
 
     resetPosition(x, y) {
@@ -2073,7 +2036,6 @@
       this.swingWeight = 0;
       this.landWeight = 0;
       this.headBumpTimer = 0;
-      this.stompTimer = 0;
     }
 
     addScore(points) {
@@ -2089,29 +2051,7 @@
       };
     }
 
-    // Upward Shock Sock Swing Hitbox (detects overhead ceiling ice blocks directly above)
-    getUpwardHitbox() {
-      if (!this.isSwinging || this.sockTimer < 1) return null;
-      return {
-        x: this.x - 2,
-        y: this.y - 24,
-        w: this.width + 4,
-        h: 28
-      };
-    }
-
-    // Ice-Breaking Shock Sock Hitbox (strictly overhead & upper-body; stops well above feet so standing/walking never breaks floor underneath)
-    getIceAttackHitbox() {
-      if (!this.isSwinging || this.sockTimer < 1) return null;
-      return {
-        x: this.facing > 0 ? this.x - 2 : this.x - 28,
-        y: this.y - 24,
-        w: 58,
-        h: 36 // top: y - 24, bottom: y + 12 (26px above Shinchan's feet)
-      };
-    }
-
-    // Forward Shock Sock Enemy Hitbox (hits adjacent standing and sliding enemies reliably)
+    // Forward Shock Sock Enemy Hitbox (strictly detects enemies in front of Shinchan)
     getSockHitbox() {
       if (!this.isSwinging || this.sockTimer < 1) return null;
       return {
@@ -2174,6 +2114,16 @@
       this.swingSock();
     }
 
+    jump() {
+      if (!this.isGrounded || !this.isAlive) return false;
+      this.vy = CONFIG.PHYSICS.JUMP_SPEED;
+      this.isGrounded = false;
+      this.ridingPlatform = null;
+      this.state = 'jump';
+      SFX.jump();
+      return true;
+    }
+
     handleInput(inputState) {
       if (!this.isAlive || this.state === 'victory') return;
 
@@ -2185,14 +2135,10 @@
       this.attackButtonHeld = attackPressed;
       this.hammerButtonHeld = attackPressed;
 
-      // 2. Jump (Controlled jump height with strict debouncing)
+      // 2. Jump (W, Spacebar, Right Mouse Button, and Touch Jump share this.jump())
       const jumpPressed = !!inputState.jump;
       if (jumpPressed && !this.jumpButtonHeld && this.isGrounded) {
-        this.vy = CONFIG.PHYSICS.JUMP_SPEED;
-        this.isGrounded = false;
-        this.ridingPlatform = null;
-        this.state = 'jump';
-        SFX.jump();
+        this.jump();
       }
       this.jumpButtonHeld = jumpPressed;
 
@@ -2289,7 +2235,6 @@
       }
 
       if (this.headBumpTimer > 0) this.headBumpTimer--;
-      if (this.stompTimer > 0) this.stompTimer--;
 
       if (this.isInvulnerable) {
         this.invulnerableTimer--;
@@ -2408,10 +2353,6 @@
       this.hp = this.maxHp;
       this.invulnerableHitTimer = 0;
 
-      // Stomp & defeat properties
-      this.isFlattened = false;
-      this.flattenTimer = 0;
-
       this.state = 'patrol';
       this.isCharging = false;
 
@@ -2430,32 +2371,8 @@
       return { x: this.x + 4, y: this.y + 4, w: this.width - 8, h: this.height - 4 };
     }
 
-    // Mario-style Stomp Defeat
-    stompDefeat(player, level) {
-      if (this.isDefeated || this.isFlattened) return;
-      this.isDefeated = true;
-      this.isFlattened = true;
-      this.flattenTimer = 24;
-      this.isShocked = false;
-      this.isCharging = false;
-      this.hp = 0;
-
-      const pts = (this.variant === 'golden') ? CONFIG.SCORE.DEFEAT_DUCK_GOLDEN : CONFIG.SCORE.DEFEAT_DUCK;
-      player.addScore(pts);
-      if (window.game && window.game.stats) {
-        window.game.stats.ducksDefeated++;
-        window.game.stats.totalDefeated++;
-      }
-      if (level && level.particleSystem) {
-        level.particleSystem.spawnScorePopup(this.x + this.width / 2, this.y - 12, `+${pts}`);
-        level.particleSystem.spawnStompImpact(this.x + this.width / 2, this.y + 4);
-      }
-      SFX.stomp();
-      SFX.quack();
-    }
-
     hitByShockSock(player, level) {
-      if (this.isDefeated || this.isFlattened || this.invulnerableHitTimer > 0) return;
+      if (this.isDefeated || this.invulnerableHitTimer > 0) return;
       this.invulnerableHitTimer = 16;
       this.hp--;
       this.shockFacing = player.facing;
@@ -2497,15 +2414,6 @@
 
     update(level, players) {
       if (!this.isActive) return;
-
-      // 1. Mario-style Flattened Squash animation
-      if (this.isFlattened) {
-        this.flattenTimer--;
-        if (this.flattenTimer <= 0) {
-          this.isActive = false;
-        }
-        return;
-      }
 
       if (this.invulnerableHitTimer > 0) this.invulnerableHitTimer--;
 
@@ -2618,45 +2526,14 @@
     }
 
     checkPlayerDamage(players) {
-      if (this.isShocked || this.isDefeated || this.isFlattened || this.hp <= 0) return;
+      if (this.isShocked || this.isDefeated || this.hp <= 0) return;
       const myBox = this.getBounds();
-      const enemyTopY = this.y;
-      const enemyMidY = this.y + this.height * 0.65;
 
       for (const p of players) {
         if (!p.isAlive || p.isInvulnerable) continue;
 
-        const playerFeetY = p.y + p.height;
-        const prevFeetY = p.prevY + p.height;
-        const isFalling = (p.vy >= -0.5 || p.state === 'fall' || playerFeetY >= prevFeetY);
-
-        // 1. Mario-style Stomp Collision Check (Checked FIRST before any touch damage!)
-        const pLeft = p.x + 2;
-        const pRight = p.x + p.width - 2;
-        const eLeft = this.x + 2;
-        const eRight = this.x + this.width - 2;
-        const horizOverlap = (pRight >= eLeft && pLeft <= eRight);
-        const crossedHead = (prevFeetY <= enemyTopY + 12 && playerFeetY >= enemyTopY - 6);
-
-        if (horizOverlap && (crossedHead || (playerFeetY <= enemyMidY && isFalling))) {
-          // Stomp succeeds! Immediately defeat enemy and bounce player upward
-          this.stompDefeat(p, window.game ? window.game.levelManager : null);
-          p.y = enemyTopY - p.height;
-          p.vy = -6.2; // Mario upward bounce
-          p.isGrounded = false;
-          p.state = 'jump';
-          p.stompTimer = 16;
-          p.invulnerableTimer = 16;
-          return;
-        }
-
-        // 2. Airborne Overhead Clearance: if feet are above enemy, pass cleanly overhead
-        if (playerFeetY <= enemyTopY + 4) {
-          continue;
-        }
-
-        // 3. Ground / side collision: player takes damage only when feet are level with enemy body (not stomping)
-        if (playerFeetY > enemyMidY && aabbIntersect(myBox, p.getBounds())) {
+        // Jumping cleanly overhead passes safely; any direct contact damages player (never kills enemy)
+        if (aabbIntersect(myBox, p.getBounds())) {
           p.takeDamage();
         }
       }
@@ -2692,10 +2569,6 @@
       this.hp = this.maxHp;
       this.invulnerableHitTimer = 0;
 
-      // Stomp & defeat properties
-      this.isFlattened = false;
-      this.flattenTimer = 0;
-
       this.isShocked = false;
       this.shockTimer = 0;
       this.shockFacing = -1;
@@ -2713,31 +2586,8 @@
       return { x: this.x + 4, y: this.y + 4, w: this.width - 8, h: this.height - 4 };
     }
 
-    // Mario-style Stomp Defeat
-    stompDefeat(player, level) {
-      if (this.isDefeated || this.isFlattened) return;
-      this.isDefeated = true;
-      this.isFlattened = true;
-      this.flattenTimer = 24;
-      this.isShocked = false;
-      this.isSliding = false;
-      this.hp = 0;
-
-      const pts = CONFIG.SCORE.DEFEAT_PENGUIN;
-      player.addScore(pts);
-      if (window.game && window.game.stats) {
-        window.game.stats.penguinsDefeated++;
-        window.game.stats.totalDefeated++;
-      }
-      if (level && level.particleSystem) {
-        level.particleSystem.spawnScorePopup(this.x + this.width / 2, this.y - 12, `+${pts}`);
-        level.particleSystem.spawnStompImpact(this.x + this.width / 2, this.y + (this.isSliding ? 14 : 4));
-      }
-      SFX.stomp();
-    }
-
     hitByShockSock(player, level) {
-      if (this.isDefeated || this.isFlattened || this.invulnerableHitTimer > 0) return;
+      if (this.isDefeated || this.invulnerableHitTimer > 0) return;
       this.invulnerableHitTimer = 16;
       this.hp--;
       this.shockFacing = player.facing;
@@ -2779,15 +2629,6 @@
 
     update(level, players) {
       if (!this.isActive) return;
-
-      // 1. Mario-style Flattened Squash animation
-      if (this.isFlattened) {
-        this.flattenTimer--;
-        if (this.flattenTimer <= 0) {
-          this.isActive = false;
-        }
-        return;
-      }
 
       if (this.invulnerableHitTimer > 0) this.invulnerableHitTimer--;
 
@@ -2926,46 +2767,14 @@
     }
 
     checkPlayerDamage(players) {
-      if (this.isShocked || this.isDefeated || this.isFlattened || this.hp <= 0) return;
+      if (this.isShocked || this.isDefeated || this.hp <= 0) return;
       const myBox = this.getBounds();
-      const enemyTopY = (this.isSliding) ? this.y + 14 : this.y;
-      const enemyHeight = (this.isSliding) ? this.height - 14 : this.height;
-      const enemyMidY = enemyTopY + enemyHeight * 0.65;
 
       for (const p of players) {
         if (!p.isAlive || p.isInvulnerable) continue;
 
-        const playerFeetY = p.y + p.height;
-        const prevFeetY = p.prevY + p.height;
-        const isFalling = (p.vy >= -0.5 || p.state === 'fall' || playerFeetY >= prevFeetY);
-
-        // 1. Mario-style Stomp Collision Check (Checked FIRST before any touch damage!)
-        const pLeft = p.x + 2;
-        const pRight = p.x + p.width - 2;
-        const eLeft = this.x + 2;
-        const eRight = this.x + this.width - 2;
-        const horizOverlap = (pRight >= eLeft && pLeft <= eRight);
-        const crossedHead = (prevFeetY <= enemyTopY + 12 && playerFeetY >= enemyTopY - 6);
-
-        if (horizOverlap && (crossedHead || (playerFeetY <= enemyMidY && isFalling))) {
-          // Stomp succeeds! Immediately defeat enemy and bounce player upward
-          this.stompDefeat(p, window.game ? window.game.levelManager : null);
-          p.y = enemyTopY - p.height;
-          p.vy = -6.2; // Upward Mario bounce
-          p.isGrounded = false;
-          p.state = 'jump';
-          p.stompTimer = 16;
-          p.invulnerableTimer = 16;
-          return;
-        }
-
-        // 2. Airborne Dodge Clearance: if feet are above enemy, pass cleanly overhead
-        if (playerFeetY <= enemyTopY + 4) {
-          continue;
-        }
-
-        // 3. Ground / side collision: player takes damage only when feet are level with enemy body (not stomping)
-        if (playerFeetY > enemyMidY && aabbIntersect(myBox, p.getBounds())) {
+        // Jumping cleanly overhead passes safely; any direct contact damages player (never kills enemy)
+        if (aabbIntersect(myBox, p.getBounds())) {
           p.takeDamage();
         }
       }
@@ -3254,42 +3063,6 @@
       return false;
     }
 
-    // Mario-style Enemy Stomp Check
-    checkEnemyStomp(player, enemies) {
-      if (!player.isAlive || player.isInvulnerable) return false;
-
-      const playerFeetY = player.y + player.height;
-      const prevFeetY = player.prevY + player.height;
-      const pLeft = player.x + 2;
-      const pRight = player.x + player.width - 2;
-
-      for (const e of enemies) {
-        if (!e.isActive || e.isDefeated || e.isFlattened || e.hp <= 0) continue;
-
-        const eTop = (e.isSliding) ? e.y + 14 : e.y;
-        const eHeight = (e.isSliding) ? e.height - 14 : e.height;
-        const eMid = eTop + eHeight * 0.65;
-        const eLeft = e.x + 2;
-        const eRight = e.x + e.width - 2;
-
-        const horizOverlap = (pRight >= eLeft && pLeft <= eRight);
-        const isFalling = (player.vy >= -0.5 || player.state === 'fall' || playerFeetY >= prevFeetY);
-        const crossedHead = (prevFeetY <= eTop + 12 && playerFeetY >= eTop - 6);
-
-        if (horizOverlap && (crossedHead || (playerFeetY <= eMid && isFalling))) {
-          e.stompDefeat(player, this.level);
-          player.y = eTop - player.height;
-          player.vy = -6.2; // Upward Mario bounce
-          player.isGrounded = false;
-          player.state = 'jump';
-          player.stompTimer = 16;
-          player.invulnerableTimer = 16;
-          return true;
-        }
-      }
-      return false;
-    }
-
     // Downward landing collision
     checkFloorCollision(entity, cameraY) {
       if (entity.vy < 0) return false;
@@ -3371,44 +3144,14 @@
       return false;
     }
 
-    // Intentional Shock Sock attack: breaks reachable overhead/upper breakable ice (never standing floor beneath feet) & hits enemies
+    // Shock Sock weapon attack: strictly detects and damages enemies in front of Shinchan (never breaks or shakes platforms)
     checkHammerAttack(player, enemies) {
-      const enemyHitbox = player.getSockHitbox();
-      const iceHitbox = player.getIceAttackHitbox();
-      if (!enemyHitbox && !iceHitbox) return;
+      const hitbox = player.getSockHitbox();
+      if (!hitbox) return;
 
-      if (iceHitbox) {
-        const feetY = player.y + player.height;
-        for (let f = 0; f < this.level.floors.length; f++) {
-          const floor = this.level.floors[f];
-          if (floor.collapseState === 'collapsed') continue;
-
-          // Strictly forbid breaking the floor supporting or beneath the player's feet
-          if (floor.y >= feetY - 14) continue;
-          if (player.isGrounded && Math.abs(floor.y - feetY) <= 18) continue;
-
-          if (iceHitbox.y + iceHitbox.h >= floor.y && iceHitbox.y <= floor.y + CONFIG.BLOCK_HEIGHT) {
-            const col1 = Math.floor(iceHitbox.x / CONFIG.BLOCK_WIDTH);
-            const col2 = Math.floor((iceHitbox.x + iceHitbox.w) / CONFIG.BLOCK_WIDTH);
-            for (let col = col1; col <= col2; col++) {
-              if (col >= 0 && col < CONFIG.TILES_X && floor.blocks[col] === 1) {
-                floor.blocks[col] = 0;
-                this.level.registerBrokenHole(f, col, floor.y);
-                this.level.spawnIceDebris(col * CONFIG.BLOCK_WIDTH, floor.y);
-                this.level.particleSystem.spawnIceShatter(col * CONFIG.BLOCK_WIDTH, floor.y);
-                SFX.iceBreak();
-                player.addScore(CONFIG.SCORE.BREAK_ICE);
-              }
-            }
-          }
-        }
-      }
-
-      if (enemyHitbox) {
-        for (const e of enemies) {
-          if (e.isActive && !e.isDefeated && aabbIntersect(enemyHitbox, e.getBounds())) {
-            e.hitByShockSock(player, this.level);
-          }
+      for (const e of enemies) {
+        if (e.isActive && !e.isDefeated && aabbIntersect(hitbox, e.getBounds())) {
+          e.hitByShockSock(player, this.level);
         }
       }
     }
@@ -4117,6 +3860,11 @@
         this.keysDown[e.code] = false;
         this.justPressed[e.code] = false;
       });
+
+      window.addEventListener('blur', () => {
+        this.keysDown = {};
+        this.justPressed = {};
+      });
     }
 
     isDown(code) {
@@ -4155,16 +3903,17 @@
           left: this.isDown('ArrowLeft') || (gp ? gp.left : false),
           right: this.isDown('ArrowRight') || (gp ? gp.right : false),
           up: this.isDown('ArrowUp') || (gp ? gp.up : false),
-          jump: this.isDown('KeyZ') || (gp ? gp.jump : false),
-          hammer: this.isDown('KeyX') || (gp ? gp.hammer : false)
+          jump: this.isDown('KeyW') || this.isDown('Space') || (gp ? gp.jump : false),
+          attack: (gp ? gp.hammer : false),
+          hammer: (gp ? gp.hammer : false)
         };
       }
-      const attack = this.isDown('KeyX') || (gp ? (gp.hammer || gp.jump) : false);
+      const attack = (gp ? gp.hammer : false);
       return {
         left: this.isDown('ArrowLeft') || this.isDown('KeyA') || (gp ? gp.left : false),
         right: this.isDown('ArrowRight') || this.isDown('KeyD') || (gp ? gp.right : false),
-        up: this.isDown('ArrowUp') || this.isDown('KeyW') || (gp ? gp.up : false),
-        jump: this.isDown('KeyZ') || this.isDown('Space') || (gp ? gp.jump : false),
+        up: this.isDown('ArrowUp') || (gp ? gp.up : false),
+        jump: this.isDown('KeyW') || this.isDown('Space') || (gp ? gp.jump : false),
         attack: attack,
         hammer: attack
       };
@@ -4191,12 +3940,99 @@
 
     isUpPressed() {
       const gp = this.pollGamepad();
-      return this.isJustPressed('ArrowUp') || this.isJustPressed('KeyW') || (gp && gp.up);
+      return this.isJustPressed('ArrowUp') || (gp && gp.up);
     }
 
     isDownPressed() {
       const gp = this.pollGamepad();
       return this.isJustPressed('ArrowDown') || this.isJustPressed('KeyS') || (gp && gp.down);
+    }
+  }
+
+  // Desktop Mouse Input Handler (Left Click = Attack, Right Click = Jump)
+  class MouseInput {
+    constructor(canvas, shouldAcceptInputFn) {
+      this.canvas = canvas;
+      this.shouldAcceptInput = shouldAcceptInputFn || (() => true);
+      this.leftDown = false;
+      this.rightDown = false;
+      this.leftJustPressed = false;
+      this.rightJustPressed = false;
+      this.lastTouchTimestamp = 0;
+
+      if (this.canvas) {
+        this.init();
+      }
+    }
+
+    init() {
+      // Track recent touch activity so mobile taps never fire synthesized desktop mouse actions
+      window.addEventListener('touchstart', () => {
+        this.lastTouchTimestamp = Date.now();
+      }, { passive: true, capture: true });
+
+      this.canvas.addEventListener('mousedown', (e) => {
+        if ((e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) ||
+            (Date.now() - this.lastTouchTimestamp < 600)) {
+          return;
+        }
+        if (!this.shouldAcceptInput()) return;
+
+        APU.unlock();
+
+        if (e.button === 0) {
+          // Left Mouse Button: Shock Sock Attack only (never triggers jump)
+          e.preventDefault();
+          if (!this.leftDown) this.leftJustPressed = true;
+          this.leftDown = true;
+        } else if (e.button === 2) {
+          // Right Mouse Button: Jump only (never triggers attack)
+          e.preventDefault();
+          if (!this.rightDown) this.rightJustPressed = true;
+          this.rightDown = true;
+        }
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (e.button === 0) {
+          this.leftDown = false;
+        } else if (e.button === 2) {
+          this.rightDown = false;
+        }
+      });
+
+      // Suppress browser context menu on canvas, game container, and during active gameplay
+      const container = document.getElementById('game-container') || this.canvas;
+      if (container && container !== this.canvas) {
+        container.addEventListener('contextmenu', (e) => e.preventDefault());
+      }
+      this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+      window.addEventListener('contextmenu', (e) => {
+        if (this.shouldAcceptInput() || e.target === this.canvas || (container && container.contains(e.target))) {
+          e.preventDefault();
+        }
+      });
+
+      window.addEventListener('blur', () => this.reset());
+    }
+
+    reset() {
+      this.leftDown = false;
+      this.rightDown = false;
+      this.leftJustPressed = false;
+      this.rightJustPressed = false;
+    }
+
+    consumeState() {
+      if (!this.shouldAcceptInput()) {
+        this.reset();
+        return { attack: false, jump: false };
+      }
+      const attack = this.leftJustPressed || this.leftDown;
+      const jump = this.rightJustPressed || this.rightDown;
+      this.leftJustPressed = false;
+      this.rightJustPressed = false;
+      return { attack, jump };
     }
   }
 
@@ -4586,6 +4422,7 @@
       this.ctx = this.canvas.getContext('2d');
 
       this.keyboard = new KeyboardInput();
+      this.mouse = new MouseInput(this.canvas, () => this.state === 'PLAYING');
       this.touch = new TouchInput();
       this.levelManager = new LevelManager();
       this.collisionSystem = new CollisionSystem(this.levelManager);
@@ -4687,10 +4524,13 @@
         }
       };
 
-      this.canvas.addEventListener('click', handleUserStart);
+      this.canvas.addEventListener('click', (e) => {
+        if (e.button !== undefined && e.button !== 0) return;
+        handleUserStart();
+      });
       this.canvas.addEventListener('touchstart', handleUserStart, { passive: true });
       window.addEventListener('keydown', (e) => {
-        if (['Space', 'Enter', 'KeyX', 'KeyZ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        if (['Space', 'Enter'].includes(e.code)) {
           if (this.state === 'WAIT_START' || this.state === 'TITLE' || this.state === 'GAME_OVER') {
             handleUserStart();
           }
@@ -4701,6 +4541,7 @@
     startGameNow() {
       if (this.hasStarted && this.state === 'PLAYING') return;
       this.hasStarted = true;
+      if (this.mouse) this.mouse.reset();
       APU.unlock();
       SFX.shinchanStart();
       Music.play('mountain');
@@ -4730,6 +4571,7 @@
       }
 
       this.camera.reset(this.levelManager.mountainHeight);
+      if (this.mouse) this.mouse.reset();
       this.state = 'PLAYING';
       SFX.menuConfirm();
     }
@@ -4814,14 +4656,17 @@
 
           const p1Key = this.keyboard.getPlayer1State(this.isTwoPlayer);
           const touchState = this.touch.getState();
+          const mouseState = this.mouse.consumeState();
           const isNearDoor = this.levelManager.summitDoor && this.levelManager.summitDoor.isPlayerNear(this.players[0]);
+          const unifiedJump = p1Key.jump || mouseState.jump || touchState.jump;
+          const unifiedAttack = p1Key.attack || p1Key.hammer || mouseState.attack || touchState.attack || touchState.hammer;
           const p1Combined = {
             left: p1Key.left || touchState.left,
             right: p1Key.right || touchState.right,
-            jump: p1Key.jump || touchState.jump,
-            attack: p1Key.attack || p1Key.hammer || touchState.attack || touchState.hammer,
-            hammer: p1Key.attack || p1Key.hammer || touchState.attack || touchState.hammer,
-            up: p1Key.up || this.keyboard.isUpPressed() || (isNearDoor && touchState.jump)
+            jump: unifiedJump,
+            attack: unifiedAttack,
+            hammer: unifiedAttack,
+            up: p1Key.up || this.keyboard.isUpPressed() || (isNearDoor && unifiedJump)
           };
           this.players[0].handleInput(p1Combined);
 
@@ -4847,8 +4692,6 @@
               if (p.isSwinging) {
                 this.collisionSystem.checkHammerAttack(p, this.levelManager.enemies);
               }
-              // Check downward stomp after player update
-              this.collisionSystem.checkEnemyStomp(p, this.levelManager.enemies);
             }
 
             // Respawn on the TOP safe platform reached rather than the same platform!
