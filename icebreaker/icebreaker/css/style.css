@@ -1,0 +1,209 @@
+/* style.css - ICE BREAKER: Peak Climbers (Cross-Platform Edition) */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #060d24;
+  color: #FFFFFF;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  display: block;
+  touch-action: none;
+}
+
+/* Master container automatically occupying 100vw x 100vh of the browser window */
+#game-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #060d24;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Canvas viewport fills 100% of the viewport with zero black bars or margins */
+#game-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  image-rendering: auto;
+  background-color: #060d24;
+}
+
+/* ==================== MOBILE TOUCH CONTROLS ==================== */
+/* Hidden by default on desktop/mouse setups */
+#touch-controls {
+  display: none;
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  width: 100%;
+  padding: 0 16px;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 60;
+}
+
+#touch-left-group, #touch-right-group {
+  display: flex;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.touch-btn {
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  background: rgba(12, 25, 55, 0.7);
+  border: 2px solid rgba(100, 200, 255, 0.6);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: transform 0.08s ease, background 0.08s ease, box-shadow 0.08s ease;
+}
+
+.touch-btn:active, .touch-btn.pressed {
+  transform: scale(0.92) translateY(2px);
+  background: rgba(40, 120, 220, 0.85);
+  border-color: #80deea;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+.action-btn.jump-btn {
+  border-radius: 50%;
+  background: rgba(30, 136, 229, 0.75);
+  border-color: #90caf9;
+}
+
+.action-btn.jump-btn:active, .action-btn.jump-btn.pressed {
+  background: rgba(66, 165, 245, 0.95);
+}
+
+.action-btn.attack-btn, .action-btn.hammer-btn {
+  border-radius: 50%;
+  background: rgba(255, 179, 0, 0.8);
+  border-color: #ffe57f;
+  box-shadow: 0 4px 14px rgba(255, 235, 59, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.action-btn.attack-btn:active, .action-btn.attack-btn.pressed,
+.action-btn.hammer-btn:active, .action-btn.hammer-btn.pressed {
+  background: rgba(255, 214, 0, 0.95);
+  transform: scale(0.92) translateY(2px);
+  box-shadow: 0 2px 8px rgba(255, 235, 59, 0.7);
+}
+
+.btn-icon {
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.btn-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+/* Strictly reveal touch controls on mobile touchscreen devices */
+@media (pointer: coarse) and (hover: none) {
+  #touch-controls {
+    display: flex;
+  }
+}
+
+/* Fallback class for devices where touch was actively detected */
+body.touch-active #touch-controls {
+  display: flex;
+}
+
+/* Mobile Portrait Presentation: adapt gracefully without distortion */
+@media (orientation: portrait) {
+  #game-container {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+  #touch-controls {
+    bottom: 26px;
+    padding: 0 20px;
+  }
+  .touch-btn {
+    width: 68px;
+    height: 68px;
+  }
+  .btn-icon {
+    font-size: 24px;
+  }
+  .btn-label {
+    font-size: 10px;
+  }
+}
+
+/* Arcade Fullscreen Button (bottom-right) */
+#fullscreen-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  padding: 4px 10px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #80deea;
+  background: rgba(6, 13, 36, 0.75);
+  border: 1px solid rgba(79, 195, 247, 0.45);
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  backdrop-filter: blur(4px);
+}
+
+#fullscreen-btn:hover {
+  background: rgba(12, 35, 75, 0.95);
+  border-color: #00e5ff;
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+
+#fullscreen-btn:active {
+  transform: scale(0.95);
+}
